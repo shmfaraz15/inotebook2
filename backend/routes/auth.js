@@ -12,7 +12,9 @@ const jwt = require('jsonwebtoken')
 
 const JWT_SECRET = 'Aryanisagoodb$oy';
 
+//
 //Create a new user using post "/api/auth/createuser" . Doesn't require Auth
+//
 router.post('/createuser', [
     body('name').isLength({ min: 2 }),
     body('email').isEmail(),
@@ -38,6 +40,55 @@ router.post('/createuser', [
             password: secpass,
             email: req.body.email
         })
+
+        //payload for the jwt
+        const data = {
+            id: user.id
+        }
+        const authtoken = jwt.sign(data, JWT_SECRET);
+
+        res.json({ authtoken })
+    }
+    catch (err) {
+        console.log(err)
+        res.status(500).json({//always send the json object
+            message: err.message
+        })
+    }
+})
+
+//
+//Authenticating a user using post "/api/auth/login". 
+//
+router.post('/login', [
+    body('email', "Enter a valid email").isEmail(),
+    body('password', "Password can not be blank").isLength({ min: 1 })
+], async (req, res) => {
+    console.log(req.body)
+    const errors = validationResult(req);
+
+    //if there are errors in validations return bad request
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    //if there are errors while checking the user cath them else send the created jwt token as response
+    try {
+
+        const { email, password } = req.body;
+
+        let user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(400).json({ error: "invalid username/password" })
+        }
+
+        //returns 0 if password is wrong
+        const passwordCompare = await bcrypt.compare(password, user.password)
+
+        if (!passwordCompare) {
+            return res.status(400).json({ error: "invalid username/password" })
+        }
 
         //payload for the jwt
         const data = {
