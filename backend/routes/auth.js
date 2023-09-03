@@ -1,21 +1,58 @@
 const express = require('express');
 // const User = require('../models/User');
 const router = express.Router();
-// const { body, validationResult } = require('express-validator');
+const { body, validationResult } = require('express-validator');
 // const bcrypt = require('bcryptjs');
 // var jwt = require('jsonwebtoken');
 // var fetchuser = require('../middleware/fetchuser');
 // const Image = require('../models/Image');
 const User = require('../models/User');
+const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
 
-// const JWT_SECRET = 'Harryisagoodb$oy';
+const JWT_SECRET = 'Aryanisagoodb$oy';
 
-//Create a new user using post "/api/auth/" . Doesn't require Auth
-router.get('/', (req, res) => {
+//Create a new user using post "/api/auth/createuser" . Doesn't require Auth
+router.post('/createuser', [
+    body('name').isLength({ min: 2 }),
+    body('email').isEmail(),
+    body('password').isLength({ min: 3 })
+], async (req, res) => {
     console.log(req.body)
-    const user = User(req.body)
-    user.save()
-    res.send(req.body)
+    const errors = validationResult(req);
+
+    //if there are errors in validations return bad request
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    //if there are errors while creating the user cath them else send the created user as response
+    try {
+
+        const salt = await bcrypt.genSalt(10);
+        const secpass = await bcrypt.hash(req.body.password, salt);
+
+        //creating a new user
+        let user = await User.create({
+            name: req.body.name,
+            password: secpass,
+            email: req.body.email
+        })
+
+        //payload for the jwt
+        const data = {
+            id: user.id
+        }
+        const authtoken = jwt.sign(data, JWT_SECRET);
+
+        res.json({ authtoken })
+    }
+    catch (err) {
+        console.log(err)
+        res.status(500).json({//always send the json object
+            message: err.message
+        })
+    }
 })
 
 // // ROUTE 1: Create a User using: POST "/api/auth/createuser". No login required
